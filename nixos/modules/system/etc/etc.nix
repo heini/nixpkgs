@@ -255,8 +255,10 @@ in
           # This script atomically remounts /etc when switching configuration.
           # On a (re-)boot this should not run because /etc is mounted via a
           # systemd mount unit instead.
-          # The script will also be called when using nixos-enter, so we cannot
-          # assume that /etc has already been mounted.
+          # The activation script can also be called in cases where we didn't have
+          # an initrd though, like for instance when using  nixos-enter,
+          # so we cannot assume that /etc has already been mounted.
+          #
           # To a large extent this mimics what composefs does. Because
           # it's relatively simple, however, we avoid the composefs dependency.
           # Since this script is not idempotent, it should not run when etc hasn't
@@ -264,13 +266,19 @@ in
           if [[ ! $IN_NIXOS_SYSTEMD_STAGE1 ]] && [[ "${config.system.build.etc}/etc" != "$(readlink -f /run/current-system/etc)" ]]; then
             echo "remounting /etc..."
 
-            # These don't exist yet when we're called by nixos-enter
-            mkdir --parents /.rw-etc/upper /.rw-etc/work
+            ${lib.optionalString config.system.etc.overlay.mutable ''
+              # These directories are usually created in initrd,
+              # but we need to create them here when we didn't we're called directly,
+              # for instance by nixos-enter
+              mkdir --parents /.rw-etc/upper /.rw-etc/work
+              chmod --recursive 0755 /.rw-etc
+            ''}
 
             tmpMetadataMount=$(TMPDIR="" mktemp --tmpdir=/tmp --directory -t nixos-etc-metadata.XXXXXXXXXX)
             mount --type erofs -o ro ${config.system.build.etcMetadataImage} $tmpMetadataMount
 
-            # There was no previous /etc mounted. This happens when we're called by nixos-enter
+            # There was no previous /etc mounted. This happens when we're called
+            # directly without an initrd, like with nixos-enter.
             if ! mountpoint -q /etc; then
               mount --type overlay overlay \
                 --options lowerdir=$tmpMetadataMount::${config.system.build.etcBasedir},${etcOverlayOptions} \
