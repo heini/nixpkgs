@@ -790,6 +790,12 @@ let
             action = "store";
             use_first_pass = true;
           }; }
+          { name = "afs_session"; enable = config.security.pam.afs_session.enable; control = "optional"; modulePath = "${pam_afs_session}/lib/security/pam_afs_session.so"; settings = {
+              always_aklog = true;
+              minimum_uid = 1000;
+              program = "/run/current-system/sw/bin/aklog";
+            };
+          }
           { name = "deny"; control = "required"; modulePath = "${package}/lib/security/pam_deny.so"; }
         ]);
 
@@ -866,6 +872,12 @@ let
           { name = "kanidm"; enable = config.services.kanidm.enablePam; control = "optional"; modulePath = "${config.services.kanidm.package}/lib/pam_kanidm.so"; }
           { name = "sss"; enable = config.services.sssd.enable; control = "optional"; modulePath = "${pkgs.sssd}/lib/security/pam_sss.so"; }
           { name = "krb5"; enable = config.security.pam.krb5.enable; control = "optional"; modulePath = "${pam_krb5}/lib/security/pam_krb5.so"; }
+          { name = "afs_session"; enable = config.security.pam.afs_session.enable; control = "optional"; modulePath = "${pam_afs_session}/lib/security/pam_afs_session.so"; settings = {
+              always_aklog = true;
+              minimum_uid = 1000;
+              program = "/run/current-system/sw/bin/aklog";
+            };
+          }
           { name = "otpw"; enable = cfg.otpwAuth; control = "optional"; modulePath = "${pkgs.otpw}/lib/security/pam_otpw.so"; }
           { name = "systemd"; enable = cfg.startSession; control = "optional"; modulePath = "${config.systemd.package}/lib/security/pam_systemd.so"; }
           { name = "xauth"; enable = cfg.forwardXAuth; control = "optional"; modulePath = "${package}/lib/security/pam_xauth.so"; settings = {
@@ -897,7 +909,7 @@ let
   };
 
 
-  inherit (pkgs) pam_krb5 pam_ccreds;
+  inherit (pkgs) pam_afs_session pam_krb5 pam_ccreds;
 
   use_ldap = (config.users.ldap.enable && config.users.ldap.loginPam);
   pam_ldap = if config.users.ldap.daemon.enable then pkgs.nss_pam_ldapd else pkgs.pam_ldap;
@@ -1172,6 +1184,22 @@ in
 
           Note that the Kerberos PAM modules are not necessary when using SSS
           to handle Kerberos authentication.
+        '';
+      };
+    };
+
+    security.pam.afs_session = {
+      enable = lib.mkOption {
+        default = false;
+        defaultText = "false";
+        type = lib.types.bool;
+        description = ''
+          Enables AFS session PAM module (`pam-afs-session`).
+
+          If set, users can obtain AFS tokens at login time in order to get
+          access to their home directories in /afs. This requires a valid
+          Kerberos ticket, which must be obtained by means of either `pam_krb5`
+          or `pam_sss`
         '';
       };
     };
@@ -1607,6 +1635,7 @@ in
       ++ lib.optional config.services.kanidm.enablePam config.services.kanidm.package
       ++ lib.optional config.services.sssd.enable pkgs.sssd
       ++ lib.optionals config.security.pam.krb5.enable [pam_krb5 pam_ccreds]
+      ++ lib.optionals config.security.pam.afs_session.enable [ pam_afs_session ]
       ++ lib.optionals config.security.pam.enableOTPW [ pkgs.otpw ]
       ++ lib.optionals config.security.pam.oath.enable [ pkgs.oath-toolkit ]
       ++ lib.optionals config.security.pam.p11.enable [ pkgs.pam_p11 ]
