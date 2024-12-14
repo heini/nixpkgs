@@ -8777,6 +8777,13 @@
     githubId = 19170376;
     name = "Thomas Heijligen";
   };
+  heini = {
+    email = "heini@altum.de";
+    github = "heini";
+    githubId = 927679;
+    matrix = "@heini3270:matrix.org";
+    name = "Dirk Heinrichs";
+  };
   heisfer = {
     email = "heisfer@refract.dev";
     github = "heisfer";
